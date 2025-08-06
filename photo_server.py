@@ -44,16 +44,25 @@ HTML_TEMPLATE = """
         input[type=submit]:hover {
             background-color: #333;
         }
+        a {
+            color: #8ab4f8;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
-    <h1>📷 Upload Photo or Video</h1>
+    <h1>📷 Upload Media</h1>
     <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*,video/*" required><br>
+        <input type="file" name="files" accept="image/*,video/*" multiple required><br>
         <input type="submit" value="Upload">
     </form>
-    {% if filename %}
-        <p>Uploaded: <a href="{{ url_for('uploaded_file', filename=filename) }}">{{ filename }}</a></p>
+    {% if filenames %}
+        <h3>Uploaded Files:</h3>
+        <ul>
+        {% for name in filenames %}
+            <li><a href="{{ url_for('uploaded_file', filename=name) }}">{{ name }}</a></li>
+        {% endfor %}
+        </ul>
     {% endif %}
 </body>
 </html>
@@ -64,14 +73,15 @@ def allowed_file(filename):
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    filename = None
+    filenames = []
     if request.method == 'POST':
-        file = request.files['file']
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(save_path)
-    return render_template_string(HTML_TEMPLATE, filename=filename)
+        files = request.files.getlist('files')
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                filenames.append(filename)
+    return render_template_string(HTML_TEMPLATE, filenames=filenames)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -97,6 +107,6 @@ def show_qr_code(url):
 if __name__ == '__main__':
     ip = get_local_ip()
     url = f"http://{ip}:{PORT}"
-    print(f"\n📱 Open this on your phone: {url}\n")
+    print(f"\n📱 Scan this QR code to upload media from your phone:\n{url}\n")
     show_qr_code(url)
     app.run(host='0.0.0.0', port=PORT)
